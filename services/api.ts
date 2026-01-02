@@ -2,7 +2,7 @@
 import { Deck, Note, Test, UserStats, UserProfile, ChatSession, ThemeMode, ColorScheme } from '../types';
 
 // API Base URL
-const API_BASE = process.env.NODE_ENV === 'production' ? 'https://card-snaps-backend.onrender.com' : 'http://localhost:3001';
+const API_BASE = process.env.NODE_ENV === 'production' ? (process.env.API_BASE || 'https://card-snaps-backend.onrender.com') : 'http://localhost:3001';
 
 export interface CommunityItem {
     id: string;
