@@ -3,8 +3,9 @@ import cors from 'cors';
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Deck, Note, Test, ChatSession, UserStats } from './types';
-import { CommunityItem } from './services/api';
+import { Deck, Note, Test, ChatSession, UserStats } from '../types';
+import { CommunityItem } from '../services/api';
+import { generateDeckFromContent } from '../services/geminiService';
 
 interface Like {
   postId: string;
@@ -310,10 +311,10 @@ app.post('/api/community/:id/view', (req, res) => {
 app.post('/api/generate', async (req, res) => {
   const { prompt } = req.body;
   try {
-    // Here you would call Gemini API
-    // For now, return a mock response
-    res.json({ response: 'Mock AI response' });
+    const result = await generateDeckFromContent(null, null, prompt, "Generate flashcards from this content");
+    res.json(result);
   } catch (e) {
+    console.error('AI error:', e);
     res.status(500).json({ error: 'AI error' });
   }
 });

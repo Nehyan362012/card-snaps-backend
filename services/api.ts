@@ -231,6 +231,13 @@ class ApiService {
     async incrementDownload(communityId: string): Promise<void> {
         // This might need a separate endpoint
     }
+
+    async generateDeck(prompt: string): Promise<{title: string, description: string, cards: any[]}> {
+        return this.apiRequest('/generate', {
+            method: 'POST',
+            body: JSON.stringify({ prompt })
+        });
+    }
 }
 
 export const api = new ApiService();

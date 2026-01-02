@@ -3,11 +3,11 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Card, Deck, ChatMessage, Exercise, DailyGoal, Test, UserStats } from "../types";
 
 const getKey = () => {
-    if (!process.env.API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
         // Fallback for non-AI modes or graceful error handling
         return "dummy_key"; 
     }
-    return process.env.API_KEY;
+    return process.env.GEMINI_API_KEY;
 }
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
