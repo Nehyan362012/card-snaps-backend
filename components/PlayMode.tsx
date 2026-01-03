@@ -12,6 +12,8 @@ interface PlayModeProps {
 }
 
 export const PlayMode: React.FC<PlayModeProps> = ({ stats, themeColor, onClaimGoal, activeEvent }) => {
+  console.log('PlayMode render', { stats, themeColor, activeEvent });
+
   // Leveling Logic: Double XP required for each next level
   const xpRequiredForNextLevel = 1000 * Math.pow(2, stats.level - 1);
   
