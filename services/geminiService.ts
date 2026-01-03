@@ -3,9 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Card, Deck, ChatMessage, Exercise, DailyGoal, Test, UserStats } from "../types";
 
 const getKey = () => {
-    if (!process.env.GEMINI_API_KEY) {
-        // Fallback for non-AI modes or graceful error handling
-        return "dummy_key"; 
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "YOUR_API_KEY_HERE") {
+        throw new Error("GEMINI_API_KEY not found. Please set it in your .env.local file.");
     }
     return process.env.GEMINI_API_KEY;
 }
@@ -47,93 +46,91 @@ export const generateDeckFromContent = async (
 
 // --- LEARN MODE AI (KEPT AS REQUESTED) ---
 export const generateGamifiedExercises = async (content: string, topic: string, count: number = 15, gradeLevel: string = "10th Grade"): Promise<Exercise[]> => {
-    // Check if key is available, otherwise return fallback
-    if (getKey() === "dummy_key") return [];
-
-    const ai = new GoogleGenAI({ apiKey: getKey() });
-
-    const getExerciseSchema = () => ({
-        type: Type.ARRAY,
-        items: {
-            type: Type.OBJECT,
-            properties: {
-                id: { type: Type.STRING },
-                type: { type: Type.STRING, enum: [
-                    'quiz', 'true_false', 'fill_blank', 'matching', 'unscramble', 
-                    'timeline', 'flashcard_review', 'short_answer', 'ranking', 
-                    'reaction', 'comparison', 'odd_one_out', 'analogy', 'classification',
-                    'syntax_repair', 'connection', 'elimination', 'blind_spot', 'category_sort'
-                ]},
-                question: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                correctAnswer: { type: Type.STRING },
-                pairs: { 
-                    type: Type.ARRAY, 
-                    items: {
-                        type: Type.OBJECT,
-                        properties: { left: { type: Type.STRING }, right: { type: Type.STRING } },
-                        required: ["left", "right"]
-                    }
-                },
-                events: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: { 
-                            id: { type: Type.STRING }, 
-                            text: { type: Type.STRING },
-                            order: { type: Type.INTEGER } 
-                        },
-                        required: ["id", "text", "order"]
-                    }
-                },
-                categories: { type: Type.ARRAY, items: { type: Type.STRING } },
-                dragItems: { type: Type.ARRAY, items: { type: Type.STRING } },
-                statements: { 
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: { id: { type: Type.STRING }, text: { type: Type.STRING }, isCorrect: { type: Type.BOOLEAN } },
-                        required: ["id", "text", "isCorrect"]
-                    }
-                },
-                context: { type: Type.STRING }
-            },
-            required: ["type", "question", "correctAnswer"]
-        }
-    });
-
-    const attemptGeneration = async (numQuestions: number): Promise<Exercise[]> => {
-        const safeContext = content.length > 3000 ? content.substring(0, 3000) : content;
-        
-        const prompt = `
-            Context: "${safeContext}"
-            Topic: ${topic}
-            Level: ${gradeLevel}
-            
-            Generate ${numQuestions} varied gamified exercises.
-            Use a diverse mix of types.
-        `;
-
-        try {
-            const response = await ai.models.generateContent({
-                model: "gemini-3-flash-preview",
-                contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: getExerciseSchema()
-                }
-            });
-
-            if (!response.text) return [];
-            return JSON.parse(response.text);
-        } catch (e) {
-            console.warn("Single batch generation failed", e);
-            return [];
-        }
-    };
-
     try {
+        const apiKey = getKey();
+        const ai = new GoogleGenAI({ apiKey });
+
+        const getExerciseSchema = () => ({
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    id: { type: Type.STRING },
+                    type: { type: Type.STRING, enum: [
+                        'quiz', 'true_false', 'fill_blank', 'matching', 'unscramble', 
+                        'timeline', 'flashcard_review', 'short_answer', 'ranking', 
+                        'reaction', 'comparison', 'odd_one_out', 'analogy', 'classification',
+                        'syntax_repair', 'connection', 'elimination', 'blind_spot', 'category_sort'
+                    ]},
+                    question: { type: Type.STRING },
+                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    correctAnswer: { type: Type.STRING },
+                    pairs: { 
+                        type: Type.ARRAY, 
+                        items: {
+                            type: Type.OBJECT,
+                            properties: { left: { type: Type.STRING }, right: { type: Type.STRING } },
+                            required: ["left", "right"]
+                        }
+                    },
+                    events: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: { 
+                                id: { type: Type.STRING }, 
+                                text: { type: Type.STRING },
+                                order: { type: Type.INTEGER } 
+                            },
+                            required: ["id", "text", "order"]
+                        }
+                    },
+                    categories: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    dragItems: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    statements: { 
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: { id: { type: Type.STRING }, text: { type: Type.STRING }, isCorrect: { type: Type.BOOLEAN } },
+                            required: ["id", "text", "isCorrect"]
+                        }
+                    },
+                    context: { type: Type.STRING }
+                },
+                required: ["type", "question", "correctAnswer"]
+            }
+        });
+
+        const attemptGeneration = async (numQuestions: number): Promise<Exercise[]> => {
+            const safeContext = content.length > 3000 ? content.substring(0, 3000) : content;
+            
+            const prompt = `
+                Context: "${safeContext}"
+                Topic: ${topic}
+                Level: ${gradeLevel}
+                
+                Generate ${numQuestions} varied gamified exercises.
+                Use a diverse mix of types.
+            `;
+
+            try {
+                const response = await ai.models.generateContent({
+                    model: "gemini-3-flash-preview",
+                    contents: prompt,
+                    config: {
+                        responseMimeType: "application/json",
+                        responseSchema: getExerciseSchema()
+                    }
+                });
+
+                if (!response.text) return [];
+                return JSON.parse(response.text);
+            } catch (e) {
+                console.warn("Single batch generation failed", e);
+                return [];
+            }
+        };
+
         const BATCH_SIZE = 8; 
         const totalBatches = Math.ceil(count / BATCH_SIZE);
         let allExercises: Exercise[] = [];
@@ -153,24 +150,24 @@ export const generateGamifiedExercises = async (content: string, topic: string, 
         }));
 
     } catch (e) {
-        console.warn("Generation error:", e);
-        return [];
+        console.error("Generation error in generateGamifiedExercises:", e);
+        // Re-throw the error to be caught by the calling component
+        throw e;
     }
 };
 
 // --- LEARN MODE CHECK (KEPT AS REQUESTED) ---
 export const checkAnswerWithAI = async (question: string, correctAnswer: string, userAnswer: string): Promise<{correct: boolean, feedback: string}> => {
-    if (getKey() === "dummy_key") return { correct: true, feedback: "AI Offline: Answer accepted." };
-
-    const ai = new GoogleGenAI({ apiKey: getKey() });
-    const prompt = `
-        Q: ${question}
-        Correct Answer/Logic: ${correctAnswer}
-        User Answer: ${userAnswer}
-        Is the user correct? Return JSON {"correct": boolean, "feedback": string}. Be lenient with typos.
-    `;
-    
     try {
+        const apiKey = getKey();
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `
+            Q: ${question}
+            Correct Answer/Logic: ${correctAnswer}
+            User Answer: ${userAnswer}
+            Is the user correct? Return JSON {"correct": boolean, "feedback": string}. Be lenient with typos.
+        `;
+        
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
             contents: prompt,
@@ -188,7 +185,12 @@ export const checkAnswerWithAI = async (question: string, correctAnswer: string,
         });
         return JSON.parse(response.text || '{"correct": false, "feedback": "AI Error"}');
     } catch(e) {
-        return { correct: false, feedback: "Could not verify." };
+        console.error("AI answer check failed:", e);
+        // Provide a more specific error message if the key is the issue
+        if (e instanceof Error && e.message.includes("GEMINI_API_KEY")) {
+             return { correct: false, feedback: "AI service is not configured. Could not verify answer." };
+        }
+        return { correct: false, feedback: "Could not verify answer due to a technical issue." };
     }
 };
 

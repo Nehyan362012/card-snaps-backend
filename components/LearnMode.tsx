@@ -40,6 +40,8 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
   const [isChecking, setIsChecking] = useState(false); 
   const [isTransitioning, setIsTransitioning] = useState(false);
   
+  const [error, setError] = useState<string | null>(null);
+
   // Snap Cards
   const [cardsUsedThisSession, setCardsUsedThisSession] = useState<string[]>([]);
   
@@ -114,6 +116,8 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
 
     // Initializers
     if (ex.type === 'matching' && ex.pairs) {
+        // Ensure pairs is not empty and has at least 2 pairs for a valid matching exercise
+        if (ex.pairs.length < 2) return;
         const scrambled = [...ex.pairs].map(p => ({ id: p.right, text: p.right })).sort(() => Math.random() - 0.5);
         setRightItems(scrambled);
     } 
@@ -122,9 +126,11 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
         setUnscramblePool(words);
     } 
     else if ((ex.type === 'ranking' || ex.type === 'timeline') && ex.events) {
+        if (ex.events.length < 2) return;
         setOrderedItems([...ex.events].sort(() => Math.random() - 0.5));
     }
     else if ((ex.type === 'classification' || ex.type === 'category_sort') && ex.categories && ex.dragItems) {
+        if (ex.categories.length === 0 || ex.dragItems.length === 0) return;
         const initMap: Record<string, string[]> = {};
         ex.categories.forEach(c => initMap[c] = []);
         setClassificationMap(initMap);
@@ -143,6 +149,7 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
     }
 
     setGameState('loading');
+    setError(null);
     soundService.playPop();
     setStartTime(Date.now());
     setSessionCorrectCount(0);
@@ -158,17 +165,35 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
       }
 
       const generated = await generateGamifiedExercises(contentToProcess, topic || (selectedDeck?.title ?? 'General'), questionCount);
+      
+      if (generated.length === 0) {
+        throw new Error("The AI returned no exercises. This may be due to a configuration issue or a problem with the content provided.");
+      }
+      
       // Ensure specific types have valid data structure or fallback
       const validExercises = generated.filter(e => {
           if (e.type === 'ranking' || e.type === 'timeline') return e.events && e.events.length > 1;
           if (e.type === 'matching') return e.pairs && e.pairs.length > 1;
+          if (e.type === 'classification' || e.type === 'category_sort') return e.categories && e.categories.length > 0 && e.dragItems && e.dragItems.length > 0;
+          if (e.type === 'quiz' || e.type === 'odd_one_out') return e.options && e.options.length > 1;
           return true;
       });
 
+      if (validExercises.length === 0) {
+          throw new Error("Failed to create a valid session. The generated exercises were not suitable. Please try a different topic or deck.");
+      }
+
       setExercises(validExercises);
       setGameState('playing');
-    } catch (e) {
-      alert("Failed to generate. Try again.");
+    } catch (e: any) {
+      console.error("Error starting Learn Mode:", e);
+      let errorMessage = "Failed to generate the learning session. Please try again.";
+      if (e.message.includes("GEMINI_API_KEY")) {
+          errorMessage = "The AI service is not configured. Please ensure your API key is set up correctly.";
+      } else if (e.message) {
+          errorMessage = e.message;
+      }
+      setError(errorMessage);
       setGameState('setup');
     }
   };
@@ -321,6 +346,22 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
 
     return (
         <div className="flex flex-col items-center justify-center h-full animate-fade-in-up p-4 md:p-8">
+
+        {error && (
+            <div className="absolute top-4 right-4 max-w-sm w-full bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl shadow-lg flex items-start gap-4">
+                <div className="flex-shrink-0 w-6 h-6">
+                    <HelpCircle />
+                </div>
+                <div className="flex-grow">
+                    <p className="font-bold text-base">Error</p>
+                    <p className="text-sm">{error}</p>
+                </div>
+                <button onClick={() => setError(null)} className="flex-shrink-0 p-1 hover:bg-red-500/20 rounded-full">
+                    <X className="w-4 h-4" />
+                </button>
+            </div>
+        )}
+
         <div className="text-center mb-8 md:mb-12">
             <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-indigo-500/30 animate-float">
                 <Gamepad2 className="w-10 h-10 md:w-12 md:h-12 text-white" />
@@ -631,21 +672,25 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
   );
 
   // 5. Comparison
-  const renderComparison = (ex: Exercise) => (
+  const renderComparison = (ex: Exercise) => {
+    if (!ex.comparisonItems) return null;
+
+      return (
       <div className="w-full text-center">
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 mb-8">
-              <div className="text-xl font-bold">{ex.comparisonItems?.left}</div>
+              <div className="text-xl font-bold">{ex.comparisonItems.left}</div>
               <div className="text-[var(--text-tertiary)] font-bold">VS</div>
-              <div className="text-xl font-bold">{ex.comparisonItems?.right}</div>
+              <div className="text-xl font-bold">{ex.comparisonItems.right}</div>
           </div>
           <p className="mb-6 font-medium text-lg">{ex.question}</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button onClick={() => checkAnswer('left', 'comparison')} className="px-8 py-4 bg-[var(--input-bg)] border border-[var(--glass-border)] hover:bg-indigo-500 hover:text-white rounded-2xl transition-all font-bold">{ex.comparisonItems?.left}</button>
+              <button onClick={() => checkAnswer('left', 'comparison')} className="px-8 py-4 bg-[var(--input-bg)] border border-[var(--glass-border)] hover:bg-indigo-500 hover:text-white rounded-2xl transition-all font-bold">{ex.comparisonItems.left}</button>
               <button onClick={() => checkAnswer('equal', 'comparison')} className="px-8 py-4 bg-[var(--input-bg)] border border-[var(--glass-border)] hover:bg-purple-500 hover:text-white rounded-2xl transition-all font-bold">Equal / Both</button>
-              <button onClick={() => checkAnswer('right', 'comparison')} className="px-8 py-4 bg-[var(--input-bg)] border border-[var(--glass-border)] hover:bg-cyan-500 hover:text-white rounded-2xl transition-all font-bold">{ex.comparisonItems?.right}</button>
+              <button onClick={() => checkAnswer('right', 'comparison')} className="px-8 py-4 bg-[var(--input-bg)] border border-[var(--glass-border)] hover:bg-cyan-500 hover:text-white rounded-2xl transition-all font-bold">{ex.comparisonItems.right}</button>
           </div>
       </div>
-  );
+    )
+  };
 
   // 6. Blind Spot
   const renderBlindSpot = (ex: Exercise) => (
@@ -748,7 +793,7 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
                           if(c.perk === 'xp_boost') { if(c.type==='snap') setXpBonusActive(true); else setWeakXpBonusActive(true); }
                           if(c.perk === 'safety_net') { if(c.type==='snap') setSafetyNetActive(true); else setWeakSafetyNetActive(true); }
                           if(c.perk === 'auto_solve') { if(c.type==='snap') handleCorrect(); else Math.random()>.5 ? handleCorrect() : handleWrong("Backfire!"); }
-                      }} className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border shadow-lg hover:scale-110 transition-transform ${c.type === 'snap' ? `bg-${c.color}-500 text-white border-white/20` : 'bg-slate-700 border-slate-600 text-slate-300'}`}>
+                      }} className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border shadow-lg hover:scale-110 transition-transform ${c.type === 'snap' && c.color ? `bg-${c.color}-500 text-white border-white/20` : 'bg-slate-700 border-slate-600 text-slate-300'}`}>
                           {c.icon === 'Zap' && <Zap className="w-5 h-5"/>}
                           {c.icon === 'Eye' && <Eye className="w-5 h-5"/>}
                           {c.icon === 'Shield' && <Shield className="w-5 h-5"/>}

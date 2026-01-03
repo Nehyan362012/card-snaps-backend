@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Deck, AppView, Card, SortOption, Test, ThemeMode, ColorScheme, UserProfile, ChatMessage, UserStats, ChatSession, Note, SeasonalEvent, SEASONAL_EVENTS, DailyGoal } from './types';
+import React, { useState, useEffect } from 'react';
+import { Deck, AppView, Card, Test, ThemeMode, ColorScheme, UserProfile, ChatMessage, UserStats, ChatSession, Note, SeasonalEvent, SEASONAL_EVENTS, DailyGoal } from './types';
 import { DeckBuilder } from './components/DeckBuilder';
 import { StudyMode } from './components/StudyMode';
 import { PreparationMode } from './components/PreparationMode';
@@ -25,7 +25,7 @@ import { ProfilePage } from './components/ProfilePage';
 import { soundService } from './services/soundService';
 import { generateDailyGoals } from './services/geminiService';
 import { api } from './services/api'; 
-import { Plus, Play, Edit2, Trash2, Library, Zap, Share2, Menu, LogOut, Maximize2 } from 'lucide-react';
+import { Menu } from 'lucide-react';
 
 const THEME_COLORS: Record<ColorScheme, string> = {
   midnight: 'indigo',
@@ -146,7 +146,12 @@ const App: React.FC = () => {
           
           if (importDeck) {
               try {
-                  const jsonStr = decodeURIComponent(escape(atob(importDeck)));
+                  const decoded = atob(importDeck);
+                  const bytes = new Uint8Array(decoded.length);
+                  for (let i = 0; i < decoded.length; i++) {
+                      bytes[i] = decoded.charCodeAt(i);
+                  }
+                  const jsonStr = new TextDecoder('utf-8').decode(bytes);
                   const deckData = JSON.parse(jsonStr);
                   
                   if (deckData.cards && Array.isArray(deckData.cards)) {
@@ -385,8 +390,7 @@ const App: React.FC = () => {
               if (prev.lastStudyDate === yesterday.toDateString()) {
                   streak++;
               } else {
-                  // Keep streak if played today, else reset
-                  if (prev.lastStudyDate !== today) streak = 1;
+                  streak = 1;
               }
           }
 
@@ -396,13 +400,8 @@ const App: React.FC = () => {
           let newXP = prev.xp + finalScore;
           let newLevel = prev.level;
           
-          while(true) {
-             const xpToCompleteCurrentLevel = 1000 * (Math.pow(2, newLevel) - 1);
-             if (newXP >= xpToCompleteCurrentLevel) {
-                 newLevel++;
-             } else {
-                 break;
-             }
+          while (newXP >= (1000 * (Math.pow(2, newLevel) - 1))) {
+              newLevel++;
           }
 
           // --- CENTRALIZED CARD UNLOCK LOGIC ---
@@ -493,7 +492,7 @@ const App: React.FC = () => {
           }
       }
       return () => clearInterval(interval);
-  }, [focusIsActive, focusTimeLeft, focusMode]);
+  }, [focusIsActive, focusTimeLeft, focusMode, handleUpdateStats]);
   
   const handleClaimGoal = (goalId: string) => {
       setStats((prev: UserStats) => {
