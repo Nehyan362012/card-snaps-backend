@@ -862,5 +862,3 @@ const App: React.FC = () => {
     </BackgroundWrapper>
   );
 };
-
-export default App;

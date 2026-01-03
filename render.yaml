@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: card-snaps-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+    # Add your environment variables in Render dashboard:
+    # SUPABASE_URL
+    # SUPABASE_ANON_KEY
+    # GEMINI_API_KEY (optional)
+

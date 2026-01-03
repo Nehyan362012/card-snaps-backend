@@ -3,10 +3,15 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Card, Deck, ChatMessage, Exercise, DailyGoal, Test, UserStats } from "../types";
 
 const getKey = () => {
-    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "YOUR_API_KEY_HERE") {
-        throw new Error("GEMINI_API_KEY not found. Please set it in your .env.local file.");
+    // Try to get API key from environment (works in both browser and Node.js)
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 
+                   (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
+                   '';
+    
+    if (!apiKey || apiKey === "YOUR_API_KEY_HERE" || apiKey === "") {
+        throw new Error("GEMINI_API_KEY not found. Please set VITE_GEMINI_API_KEY in your .env file for frontend, or GEMINI_API_KEY for backend.");
     }
-    return process.env.GEMINI_API_KEY;
+    return apiKey;
 }
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -47,7 +52,14 @@ export const generateDeckFromContent = async (
 // --- LEARN MODE AI (KEPT AS REQUESTED) ---
 export const generateGamifiedExercises = async (content: string, topic: string, count: number = 15, gradeLevel: string = "10th Grade"): Promise<Exercise[]> => {
     try {
-        const apiKey = getKey();
+        let apiKey: string;
+        try {
+            apiKey = getKey();
+        } catch (e) {
+            // If API key is missing, return fallback exercises
+            console.warn("Gemini API key not configured. Using fallback exercises.");
+            return generateFallbackExercises(content, topic, count);
+        }
         const ai = new GoogleGenAI({ apiKey });
 
         const getExerciseSchema = () => ({
@@ -156,10 +168,60 @@ export const generateGamifiedExercises = async (content: string, topic: string, 
     }
 };
 
+// Helper function to generate fallback exercises when AI is not available
+const generateFallbackExercises = (content: string, topic: string, count: number): Exercise[] => {
+    const exercises: Exercise[] = [];
+    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    
+    for (let i = 0; i < Math.min(count, sentences.length); i++) {
+        const sentence = sentences[i].trim();
+        const words = sentence.split(' ');
+        if (words.length < 3) continue;
+        
+        exercises.push({
+            id: crypto.randomUUID(),
+            type: 'quiz',
+            question: `What is the main idea in: "${sentence.substring(0, 50)}..."?`,
+            options: [
+                sentence.substring(0, Math.min(50, sentence.length)),
+                'Something else',
+                'Not sure',
+                'Need more context'
+            ],
+            correctAnswer: sentence.substring(0, Math.min(50, sentence.length))
+        });
+    }
+    
+    // Fill remaining slots with generic exercises
+    while (exercises.length < count) {
+        exercises.push({
+            id: crypto.randomUUID(),
+            type: 'quiz',
+            question: `Review question about ${topic}`,
+            options: ['Option A', 'Option B', 'Option C', 'Option D'],
+            correctAnswer: 'Option A'
+        });
+    }
+    
+    return exercises.slice(0, count);
+};
+
 // --- LEARN MODE CHECK (KEPT AS REQUESTED) ---
 export const checkAnswerWithAI = async (question: string, correctAnswer: string, userAnswer: string): Promise<{correct: boolean, feedback: string}> => {
     try {
-        const apiKey = getKey();
+        let apiKey: string;
+        try {
+            apiKey = getKey();
+        } catch (e) {
+            // If API key is missing, do basic string matching
+            const isCorrect = userAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim() ||
+                             userAnswer.toLowerCase().includes(correctAnswer.toLowerCase()) ||
+                             correctAnswer.toLowerCase().includes(userAnswer.toLowerCase());
+            return {
+                correct: isCorrect,
+                feedback: isCorrect ? "Correct!" : `The correct answer is: ${correctAnswer}`
+            };
+        }
         const ai = new GoogleGenAI({ apiKey });
         const prompt = `
             Q: ${question}

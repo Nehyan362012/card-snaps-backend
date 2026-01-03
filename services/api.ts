@@ -1,8 +1,8 @@
 
 import { Deck, Note, Test, UserStats, UserProfile, ChatSession, ThemeMode, ColorScheme } from '../types';
 
-// API Base URL
-const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : 'https://card-snaps-backend.onrender.com';
+// API Base URL - can be overridden with VITE_API_BASE environment variable
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:3001' : 'https://card-snaps-backend.onrender.com');
 
 export interface CommunityItem {
     id: string;

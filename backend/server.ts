@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
@@ -39,24 +40,27 @@ app.use(express.json());
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
+  console.warn('⚠️  Missing Supabase environment variables. Backend will run but database operations will fail.');
+  console.warn('   Please set SUPABASE_URL and SUPABASE_ANON_KEY in your .env file');
 }
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // API Routes
 
 // Decks
 app.get('/api/decks', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env' });
   const { data, error } = await supabase.from('decks').select('*');
   if (error) return res.status(500).json({ error: error.message });
-  const decks = data.map(row => ({
+  const decks = (data || []).map(row => ({
     ...row,
-    cards: JSON.parse(row.cards)
+    cards: JSON.parse(row.cards || '[]')
   }));
   res.json(decks);
 });
 
 app.post('/api/decks', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env' });
   const deck: Deck = req.body;
   const { error } = await supabase.from('decks').insert({
     id: deck.id,
@@ -69,6 +73,7 @@ app.post('/api/decks', async (req, res) => {
 });
 
 app.put('/api/decks/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env' });
   const id = req.params.id;
   const updatedDeck: Deck = req.body;
   const { error } = await supabase.from('decks').update({
@@ -81,6 +86,7 @@ app.put('/api/decks/:id', async (req, res) => {
 });
 
 app.delete('/api/decks/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env' });
   const id = req.params.id;
   const { error } = await supabase.from('decks').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
@@ -89,12 +95,14 @@ app.delete('/api/decks/:id', async (req, res) => {
 
 // Notes
 app.get('/api/notes', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env' });
   const { data, error } = await supabase.from('notes').select('*');
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data || []);
 });
 
 app.post('/api/notes', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env' });
   const note: Note = req.body;
   const { error } = await supabase.from('notes').insert({
     id: note.id,
@@ -110,6 +118,7 @@ app.post('/api/notes', async (req, res) => {
 });
 
 app.put('/api/notes/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env' });
   const id = req.params.id;
   const updatedNote: Note = req.body;
   const { error } = await supabase.from('notes').update({
@@ -124,6 +133,7 @@ app.put('/api/notes/:id', async (req, res) => {
 });
 
 app.delete('/api/notes/:id', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env' });
   const id = req.params.id;
   const { error } = await supabase.from('notes').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
@@ -132,6 +142,25 @@ app.delete('/api/notes/:id', async (req, res) => {
 
 // Stats
 app.get('/api/stats', async (req, res) => {
+  if (!supabase) {
+    // Return default stats if database not configured
+    const defaultStats = {
+      xp: 0,
+      streak: 0,
+      cardsLearned: 0,
+      minutesStudied: 0,
+      level: 1,
+      lastStudyDate: new Date().toDateString(),
+      totalQuestionsAnswered: 0,
+      correctAnswers: 0,
+      fastestSession: 0,
+      goals: [],
+      goalsGeneratedDate: '',
+      inventory: {},
+      learnSessionsToday: 0
+    };
+    return res.json(defaultStats);
+  }
   const { data, error } = await supabase.from('stats').select('data').eq('id', 'user_stats').single();
   if (error && error.code !== 'PGRST116') return res.status(500).json({ error: error.message });
   const stats = data ? JSON.parse(data.data) : {
@@ -153,6 +182,10 @@ app.get('/api/stats', async (req, res) => {
 });
 
 app.post('/api/stats', async (req, res) => {
+  if (!supabase) {
+    // If database not configured, just return the stats (they'll be stored locally)
+    return res.json(req.body);
+  }
   const stats = req.body;
   const { error } = await supabase.from('stats').upsert({
     id: 'user_stats',
@@ -164,16 +197,21 @@ app.post('/api/stats', async (req, res) => {
 
 // Chats
 app.get('/api/chats', async (req, res) => {
+  if (!supabase) return res.json([]);
   const { data, error } = await supabase.from('chats').select('*');
   if (error) return res.status(500).json({ error: error.message });
-  const chats = data.map(row => ({
+  const chats = (data || []).map(row => ({
     ...row,
-    messages: JSON.parse(row.messages)
+    messages: JSON.parse(row.messages || '[]')
   }));
   res.json(chats);
 });
 
 app.post('/api/chats', async (req, res) => {
+  if (!supabase) {
+    // If database not configured, just return the chat (it'll be stored locally)
+    return res.json(req.body);
+  }
   const chat: ChatSession = req.body;
   const { error } = await supabase.from('chats').insert({
     id: chat.id,
@@ -187,16 +225,21 @@ app.post('/api/chats', async (req, res) => {
 
 // Tests
 app.get('/api/tests', async (req, res) => {
+  if (!supabase) return res.json([]);
   const { data, error } = await supabase.from('tests').select('*');
   if (error) return res.status(500).json({ error: error.message });
-  const tests = data.map(row => ({
+  const tests = (data || []).map(row => ({
     ...row,
-    topics: JSON.parse(row.topics)
+    topics: JSON.parse(row.topics || '[]')
   }));
   res.json(tests);
 });
 
 app.post('/api/tests', async (req, res) => {
+  if (!supabase) {
+    // If database not configured, just return the test (it'll be stored locally)
+    return res.json(req.body);
+  }
   const test: Test = req.body;
   const { error } = await supabase.from('tests').insert({
     id: test.id,
@@ -209,6 +252,7 @@ app.post('/api/tests', async (req, res) => {
 });
 
 app.delete('/api/tests/:id', async (req, res) => {
+  if (!supabase) return res.json({ success: true });
   const id = req.params.id;
   const { error } = await supabase.from('tests').delete().eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
@@ -217,15 +261,16 @@ app.delete('/api/tests/:id', async (req, res) => {
 
 // Community
 app.get('/api/community', async (req, res) => {
+  if (!supabase) return res.json([]);
   const { data, error } = await supabase.from('community').select('*');
   if (error) return res.status(500).json({ error: error.message });
-  const items = await Promise.all(data.map(async item => {
+  const items = await Promise.all((data || []).map(async item => {
     const { data: likes } = await supabase.from('likes').select('*', { count: 'exact' }).eq('postId', item.id);
     const { data: comments } = await supabase.from('comments').select('*', { count: 'exact' }).eq('postId', item.id);
     const { data: views } = await supabase.from('views').select('*', { count: 'exact' }).eq('postId', item.id);
     return {
       ...item,
-      data: JSON.parse(item.data),
+      data: JSON.parse(item.data || '{}'),
       likesCount: likes?.length || 0,
       commentsCount: comments?.length || 0,
       views: views?.length || 0
@@ -235,6 +280,10 @@ app.get('/api/community', async (req, res) => {
 });
 
 app.post('/api/community', async (req, res) => {
+  if (!supabase) {
+    // If database not configured, just return the item (it'll be stored locally)
+    return res.json(req.body);
+  }
   const item: CommunityItem = req.body;
   const { error } = await supabase.from('community').insert({
     id: item.id,
@@ -251,6 +300,7 @@ app.post('/api/community', async (req, res) => {
 });
 
 app.post('/api/community/:id/like', async (req, res) => {
+  if (!supabase) return res.json({ liked: false });
   const postId = req.params.id;
   const userId = req.body.userId;
   const { data: existing } = await supabase.from('likes').select('*').eq('postId', postId).eq('userId', userId).single();
@@ -263,13 +313,24 @@ app.post('/api/community/:id/like', async (req, res) => {
 });
 
 app.get('/api/community/:id/comments', async (req, res) => {
+  if (!supabase) return res.json([]);
   const postId = req.params.id;
   const { data, error } = await supabase.from('comments').select('*').eq('postId', postId);
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data || []);
 });
 
 app.post('/api/community/:id/comments', async (req, res) => {
+  if (!supabase) {
+    const comment = {
+      id: crypto.randomUUID(),
+      postId: req.params.id,
+      userId: req.body.userId,
+      text: req.body.text,
+      timestamp: Date.now()
+    };
+    return res.json(comment);
+  }
   const postId = req.params.id;
   const comment = {
     id: crypto.randomUUID(),
@@ -284,6 +345,7 @@ app.post('/api/community/:id/comments', async (req, res) => {
 });
 
 app.post('/api/community/:id/view', async (req, res) => {
+  if (!supabase) return res.json({ success: true });
   const postId = req.params.id;
   const userId = req.body.userId;
   await supabase.from('views').insert({ postId, userId, timestamp: Date.now() });
