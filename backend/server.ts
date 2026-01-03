@@ -131,7 +131,21 @@ app.delete('/api/notes/:id', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
   const { data, error } = await supabase.from('stats').select('data').eq('id', 'user_stats').single();
   if (error && error.code !== 'PGRST116') return res.status(500).json({ error: error.message });
-  const stats = data ? JSON.parse(data.data) : {};
+  const stats = data ? JSON.parse(data.data) : {
+    xp: 0,
+    streak: 0,
+    cardsLearned: 0,
+    minutesStudied: 0,
+    level: 1,
+    lastStudyDate: new Date().toDateString(),
+    totalQuestionsAnswered: 0,
+    correctAnswers: 0,
+    fastestSession: 0,
+    goals: [],
+    goalsGeneratedDate: '',
+    inventory: {},
+    learnSessionsToday: 0
+  };
   res.json(stats);
 });
 
