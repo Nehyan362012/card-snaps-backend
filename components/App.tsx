@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Deck, AppView, Card, Test, ThemeMode, ColorScheme, UserProfile, UserStats, ChatSession, Note, SeasonalEvent, SEASONAL_EVENTS, DailyGoal } from '../types';
-import { supabase } from '../services/supabaseClient';
 import { DeckBuilder } from './DeckBuilder';
 import { StudyMode } from './StudyMode';
 import { PreparationMode } from './PreparationMode';
@@ -103,7 +102,6 @@ const DEFAULT_STATS: UserStats = {
 
 const App: React.FC = () => {
   const [appLoading, setAppLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [view, setView] = useState<AppView>(AppView.DASHBOARD);
   
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -171,43 +169,14 @@ const App: React.FC = () => {
       }
   }, [appLoading]);
 
+  // Removed separate auth check - now handled in ProfileSetup
   useEffect(() => {
-      const checkAuth = async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-              setIsAuthenticated(true);
-              setUserProfile({
-                  name: session.user.user_metadata.full_name || session.user.email || 'User',
-                  avatar: session.user.user_metadata.avatar_url || '',
-                  gradeLevel: 'Student'
-              });
-          } else {
-              setIsAuthenticated(false);
-          }
-          setAppLoading(false);
-      };
-
-      checkAuth();
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (event === 'SIGNED_IN' && session) {
-              setIsAuthenticated(true);
-              setUserProfile({
-                  name: session.user.user_metadata.full_name || session.user.email || 'User',
-                  avatar: session.user.user_metadata.avatar_url || '',
-                  gradeLevel: 'Student'
-              });
-          } else if (event === 'SIGNED_OUT') {
-              setIsAuthenticated(false);
-              setUserProfile(null);
-          }
-      });
-
-      return () => subscription.unsubscribe();
+      // Just set loading to false - auth will be handled in ProfileSetup
+      setAppLoading(false);
   }, []);
 
   useEffect(() => {
-      if (!isAuthenticated) return;
+      if (!userProfile) return;
 
       const onboardingDone = localStorage.getItem('cardsnaps_onboarding_done');
       if (onboardingDone) setShowOnboarding(false);
@@ -840,10 +809,6 @@ const App: React.FC = () => {
               <div className="text-white text-xl">Loading...</div>
           </div>
       );
-  }
-
-  if (!isAuthenticated) {
-      return <Auth onAuthSuccess={() => setIsAuthenticated(true)} />;
   }
 
   return (

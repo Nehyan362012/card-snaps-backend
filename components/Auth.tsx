@@ -11,6 +11,15 @@ interface AuthProps {
 
 export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
     useEffect(() => {
+        // Check if Supabase is configured
+        import('../services/supabaseClient').then(({ isSupabaseConfigured }) => {
+            if (!isSupabaseConfigured) {
+                console.warn('Supabase not configured - auth will not work');
+                // Optionally show a message to user
+                return;
+            }
+        });
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN' && session) {
                 onAuthSuccess();

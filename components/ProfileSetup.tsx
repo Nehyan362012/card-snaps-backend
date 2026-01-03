@@ -1,8 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { Camera, User, ArrowRight, Upload, GraduationCap } from 'lucide-react';
+import { Camera, User, ArrowRight, Upload, GraduationCap, Mail, Lock, Sparkles } from 'lucide-react';
 import { soundService } from '../services/soundService';
 import { CustomSelect } from './CustomSelect';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { Auth as SupabaseAuth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
 
 interface ProfileSetupProps {
   onSave: (profile: UserProfile) => void;
@@ -19,7 +22,72 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string>('');
   const [grade, setGrade] = useState(GRADES[9]); // Default 10th
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showAuth, setShowAuth] = useState(true);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // If Supabase is not configured, skip auth
+        if (!isSupabaseConfigured) {
+          console.log('Supabase not configured - skipping auth');
+          setIsAuthenticated(true);
+          setShowAuth(false);
+          setLoading(false);
+          return;
+        }
+
+        // Check for existing session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Auth check error:', error);
+          setIsAuthenticated(false);
+          setShowAuth(true);
+        } else if (session) {
+          // User is already authenticated
+          setIsAuthenticated(true);
+          setShowAuth(false);
+          // Pre-fill profile from session
+          setName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '');
+          setAvatar(session.user.user_metadata?.avatar_url || '');
+        } else {
+          // No session, show auth
+          setIsAuthenticated(false);
+          setShowAuth(true);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        // On error, allow proceeding without auth
+        setIsAuthenticated(true);
+        setShowAuth(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Only listen for auth state changes if Supabase is configured
+    if (isSupabaseConfigured) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          setIsAuthenticated(true);
+          setShowAuth(false);
+          // Pre-fill profile from session
+          setName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || '');
+          setAvatar(session.user.user_metadata?.avatar_url || '');
+        } else if (event === 'SIGNED_OUT') {
+          setIsAuthenticated(false);
+          setShowAuth(true);
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    }
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,6 +113,71 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
     }
   };
 
+  const handleSkipAuth = () => {
+    setIsAuthenticated(true);
+    setShowAuth(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+          <p className="text-[var(--text-secondary)]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth screen if Supabase is configured and user is not authenticated
+  if (showAuth && isSupabaseConfigured && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 relative overflow-hidden">
+        {/* Background Ambience */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-[20%] -left-[10%] w-[600px] h-[600px] bg-indigo-600/20 rounded-full blur-[100px] animate-blob"></div>
+          <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] bg-cyan-600/20 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
+        </div>
+
+        <div className="w-full max-w-md glass-panel p-8 md:p-12 rounded-[2.5rem] border border-white/10 relative z-10 shadow-2xl animate-fade-in-up">
+          <div className="text-center mb-10">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-cyan-500 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6 animate-float">
+              <Sparkles className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Welcome to Card Snaps</h1>
+            <p className="text-slate-400 text-lg">Sign in to create your profile</p>
+          </div>
+
+          <SupabaseAuth
+            supabaseClient={supabase}
+            appearance={{
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: '#6366f1',
+                    brandAccent: '#4f46e5',
+                  },
+                },
+              },
+            }}
+            providers={['google']}
+            redirectTo={window.location.origin}
+          />
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={handleSkipAuth}
+              className="text-sm text-slate-400 hover:text-slate-300 underline"
+            >
+              Continue without account (local storage only)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 animate-fade-in-up">
       <div className="max-w-md w-full glass-panel p-8 md:p-12 rounded-[2.5rem] relative shadow-[0_0_100px_rgba(99,102,241,0.15)] border-[var(--glass-border)] bg-[var(--glass-bg)]">
@@ -53,7 +186,7 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-violet-500 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6 animate-float">
              <User className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold text-[var(--text-primary)] mb-2">Welcome!</h1>
+          <h1 className="text-3xl font-extrabold text-[var(--text-primary)] mb-2">Welcome{isAuthenticated ? ' back' : ''}!</h1>
           <p className="text-[var(--text-secondary)]">Let's set up your profile to get started.</p>
         </div>
 
