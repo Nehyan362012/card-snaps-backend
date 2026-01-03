@@ -38,6 +38,9 @@ app.use(express.json());
 // Database setup
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // API Routes
@@ -223,9 +226,9 @@ app.get('/api/community', async (req, res) => {
     return {
       ...item,
       data: JSON.parse(item.data),
-      likesCount: likes.length,
-      commentsCount: comments.length,
-      views: views.length
+      likesCount: likes?.length || 0,
+      commentsCount: comments?.length || 0,
+      views: views?.length || 0
     };
   }));
   res.json(items);
