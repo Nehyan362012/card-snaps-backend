@@ -1,38 +1,24 @@
 
-import React, { useState } from 'react';
-import { api } from '../services/api';
-import { User, ArrowRight, Loader2, Sparkles, AlertCircle } from 'lucide-react';
-import { soundService } from '../services/soundService';
+import React, { useEffect } from 'react';
+import { Auth as SupabaseAuth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { supabase } from '../services/supabaseClient';
+import { Sparkles } from 'lucide-react';
 
 interface AuthProps {
     onAuthSuccess: () => void;
 }
 
 export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
-    const [name, setName] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+    useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                onAuthSuccess();
+            }
+        });
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name.trim()) return;
-        
-        setIsLoading(true);
-        setError('');
-        
-        try {
-            // "Register" just saves the profile locally
-            await api.register('local@device.com', 'nopassword', name);
-            soundService.playSuccess();
-            onAuthSuccess();
-        } catch (err: any) {
-            console.error(err);
-            soundService.playClick();
-            setError(err.message || "Failed to create profile");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+        return () => subscription.unsubscribe();
+    }, [onAuthSuccess]);
 
     return (
         <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 relative overflow-hidden">
@@ -48,6 +34,34 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                         <Sparkles className="w-10 h-10 text-white" />
                     </div>
                     <h1 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Card Snaps</h1>
+                    <p className="text-slate-400 text-lg">Sign in to continue your learning journey</p>
+                </div>
+
+                <SupabaseAuth
+                    supabaseClient={supabase}
+                    appearance={{
+                        theme: ThemeSupa,
+                        variables: {
+                            default: {
+                                colors: {
+                                    brand: '#6366f1',
+                                    brandAccent: '#4f46e5',
+                                },
+                            },
+                        },
+                        className: {
+                            container: 'auth-container',
+                            button: 'auth-button',
+                            input: 'auth-input',
+                        },
+                    }}
+                    providers={['google']}
+                    redirectTo={window.location.origin}
+                />
+            </div>
+        </div>
+    );
+};
                     <p className="text-slate-400 font-medium">Create your local study profile.</p>
                 </div>
 
