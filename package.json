@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@google/genai": "^0.2.0",
+    "@supabase/supabase-js": "^2.89.0",
     "@vitejs/plugin-react": "^4.2.1",
-    "better-sqlite3": "^12.5.0",
     "canvas-confetti": "^1.9.2",
     "cors": "^2.8.5",
     "express": "^5.2.1",
@@ -26,7 +26,6 @@
     "vite": "^7.3.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/canvas-confetti": "^1.6.4",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
