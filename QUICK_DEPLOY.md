@@ -97,3 +97,6 @@ vercel env add VITE_API_BASE
 - **Render Dashboard**: https://dashboard.render.com
 - **Supabase Dashboard**: https://app.supabase.com
 
+
+
+

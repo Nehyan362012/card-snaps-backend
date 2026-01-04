@@ -4,6 +4,26 @@ import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from .env.local
+const envPath = path.join(__dirname, '..', '.env.local');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const lines = envContent.split('\n');
+  lines.forEach((line) => {
+    const cleanLine = line.replace(/[^\w=._:/-]/g, '').trim();
+    const match = cleanLine.match(/^([^=]+)=(.*)$/);
+    if (match) {
+      const [, key, value] = match;
+      process.env[key.trim()] = value.trim();
+    }
+  });
+}
+
 import { Deck, Note, Test, ChatSession, UserStats } from '../types';
 import { CommunityItem } from '../services/api';
 import { generateDeckFromContent } from '../services/geminiService';
@@ -26,9 +46,6 @@ interface View {
   userId: string;
   timestamp: number;
 }
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -110,8 +127,8 @@ app.post('/api/notes', async (req, res) => {
     subject: note.subject,
     content: note.content,
     background: note.background,
-    createdAt: note.createdAt,
-    lastModified: note.lastModified
+    created_at: note.createdAt,
+    last_modified: note.lastModified
   });
   if (error) return res.status(500).json({ error: error.message });
   res.json(note);
@@ -126,7 +143,7 @@ app.put('/api/notes/:id', async (req, res) => {
     subject: updatedNote.subject,
     content: updatedNote.content,
     background: updatedNote.background,
-    lastModified: updatedNote.lastModified
+    last_modified: updatedNote.lastModified
   }).eq('id', id);
   if (error) return res.status(500).json({ error: error.message });
   res.json(updatedNote);
@@ -217,7 +234,7 @@ app.post('/api/chats', async (req, res) => {
     id: chat.id,
     title: chat.title,
     messages: JSON.stringify(chat.messages),
-    lastActive: chat.lastActive
+    last_active: chat.lastActive
   });
   if (error) return res.status(500).json({ error: error.message });
   res.json(chat);

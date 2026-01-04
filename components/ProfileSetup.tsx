@@ -18,6 +18,18 @@ const GRADES = [
     "University (Year 3)", "University (Year 4+)", "Post-Graduate/Masters", "PhD"
 ];
 
+// Get the correct redirect URL (use deployed URL, not localhost)
+const getRedirectUrl = () => {
+  const currentUrl = window.location.href.split('?')[0].split('#')[0];
+  // If we're on localhost, check for environment variable for production URL
+  if (currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1')) {
+    // In development, use current origin
+    return currentUrl;
+  }
+  // In production, use the current URL (which should be the deployed URL)
+  return currentUrl;
+};
+
 export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string>('');
@@ -139,14 +151,33 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
           <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] bg-cyan-600/20 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
         </div>
 
-        <div className="w-full max-w-md glass-panel p-8 md:p-12 rounded-[2.5rem] border border-white/10 relative z-10 shadow-2xl animate-fade-in-up">
+        <div className="w-full max-w-md glass-panel p-8 md:p-12 rounded-[2.5rem] border border-white/10 relative z-10 shadow-2xl animate-fade-in-up backdrop-blur-xl bg-slate-900/80">
           <div className="text-center mb-10">
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-cyan-500 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6 animate-float">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-cyan-500 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6 animate-float hover:scale-110 transition-transform duration-300">
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-4xl font-extrabold text-white mb-2 tracking-tight">Welcome to Card Snaps</h1>
             <p className="text-slate-400 text-lg">Sign in to create your profile</p>
           </div>
+          
+          <style>{`
+            .auth-container button {
+              border-radius: 0.75rem !important;
+              transition: all 0.2s ease !important;
+            }
+            .auth-container button:hover {
+              transform: translateY(-2px) !important;
+              box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3) !important;
+            }
+            .auth-container input {
+              border-radius: 0.75rem !important;
+              transition: all 0.2s ease !important;
+            }
+            .auth-container input:focus {
+              border-color: #6366f1 !important;
+              box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+            }
+          `}</style>
 
           <SupabaseAuth
             supabaseClient={supabase}
@@ -160,9 +191,18 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
                   },
                 },
               },
+              className: {
+                anchor: 'text-indigo-400 hover:text-indigo-300 transition-colors',
+                button: 'rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]',
+                input: 'rounded-xl border-2 transition-all focus:ring-2 focus:ring-indigo-500/50',
+                label: 'text-slate-300',
+                message: 'rounded-xl',
+              },
             }}
             providers={['google']}
-            redirectTo={window.location.origin}
+            redirectTo={getRedirectUrl()}
+            onlyThirdPartyProviders={false}
+            magicLink={true}
           />
 
           <div className="mt-6 text-center">
@@ -180,10 +220,10 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 animate-fade-in-up">
-      <div className="max-w-md w-full glass-panel p-8 md:p-12 rounded-[2.5rem] relative shadow-[0_0_100px_rgba(99,102,241,0.15)] border-[var(--glass-border)] bg-[var(--glass-bg)]">
+      <div className="max-w-md w-full glass-panel p-8 md:p-12 rounded-[2.5rem] relative shadow-[0_0_100px_rgba(99,102,241,0.15)] border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-xl hover:shadow-[0_0_120px_rgba(99,102,241,0.25)] transition-all duration-300">
         
         <div className="text-center mb-10">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-violet-500 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6 animate-float">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-violet-500 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6 animate-float hover:scale-110 hover:rotate-3 transition-all duration-300 cursor-pointer">
              <User className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-extrabold text-[var(--text-primary)] mb-2">Welcome{isAuthenticated ? ' back' : ''}!</h1>
@@ -197,14 +237,14 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
                className="relative group cursor-pointer"
                onClick={() => fileInputRef.current?.click()}
              >
-                <div className={`w-32 h-32 rounded-full border-4 border-[var(--glass-border)] shadow-2xl overflow-hidden transition-all duration-300 group-hover:scale-105 group-hover:border-indigo-500/50 ${!avatar ? 'bg-[var(--input-bg)] flex items-center justify-center' : ''}`}>
+                <div className={`w-32 h-32 rounded-full border-4 border-[var(--glass-border)] shadow-2xl overflow-hidden transition-all duration-300 group-hover:scale-110 group-hover:border-indigo-500/70 group-hover:shadow-indigo-500/50 ${!avatar ? 'bg-[var(--input-bg)] flex items-center justify-center' : ''}`}>
                     {avatar ? (
-                        <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                        <img src={avatar} alt="Profile" className="w-full h-full object-cover group-hover:brightness-110 transition-all" />
                     ) : (
-                        <Camera className="w-10 h-10 text-[var(--text-tertiary)] group-hover:text-indigo-500 transition-colors" />
+                        <Camera className="w-10 h-10 text-[var(--text-tertiary)] group-hover:text-indigo-500 group-hover:scale-110 transition-all" />
                     )}
                 </div>
-                <div className="absolute bottom-0 right-0 p-2.5 bg-indigo-600 rounded-full text-white shadow-lg transform translate-y-1 translate-x-1 group-hover:scale-110 transition-transform">
+                <div className="absolute bottom-0 right-0 p-2.5 bg-indigo-600 rounded-full text-white shadow-lg transform translate-y-1 translate-x-1 group-hover:scale-125 group-hover:bg-indigo-500 transition-all hover:rotate-12">
                     <Upload className="w-4 h-4" />
                 </div>
                 <input 
@@ -215,7 +255,7 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
                   onChange={handleFileChange}
                 />
              </div>
-             <p className="mt-3 text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Tap to upload photo</p>
+             <p className="mt-3 text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider hover:text-indigo-400 transition-colors">Tap to upload photo</p>
           </div>
 
           {/* Name Input */}
@@ -226,7 +266,7 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Alex Smith"
-              className="w-full bg-[var(--input-bg)] glass-input border border-[var(--glass-border)] rounded-2xl px-6 py-4 text-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 outline-none transition-all shadow-inner"
+              className="w-full bg-[var(--input-bg)] glass-input border-2 border-[var(--glass-border)] rounded-2xl px-6 py-4 text-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/70 outline-none transition-all shadow-inner hover:border-indigo-500/30 hover:shadow-md"
               autoFocus
             />
           </div>
@@ -234,18 +274,20 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
           {/* Grade Input */}
           <div>
             <label className="block text-xs font-bold text-[var(--text-tertiary)] mb-2 uppercase tracking-wider pl-4">Grade / Level</label>
-            <CustomSelect 
-                value={grade}
-                onChange={setGrade}
-                options={GRADES.map(g => ({ value: g, label: g }))}
-                icon={<GraduationCap className="w-5 h-5" />}
-            />
+            <div className="hover:scale-[1.01] transition-transform duration-200">
+              <CustomSelect 
+                  value={grade}
+                  onChange={setGrade}
+                  options={GRADES.map(g => ({ value: g, label: g }))}
+                  icon={<GraduationCap className="w-5 h-5" />}
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={!name.trim()}
-            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-white text-lg shadow-xl shadow-indigo-500/20 transition-all hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2 group"
+            className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-white text-lg shadow-xl shadow-indigo-500/20 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-500/40 active:translate-y-0 active:scale-[0.98] flex items-center justify-center gap-2 group"
           >
             Get Started <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>

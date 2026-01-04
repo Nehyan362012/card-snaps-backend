@@ -60,6 +60,12 @@ export const generateGamifiedExercises = async (content: string, topic: string, 
             console.warn("Gemini API key not configured. Using fallback exercises.");
             return generateFallbackExercises(content, topic, count);
         }
+        
+        if (!apiKey || apiKey === '') {
+            console.warn("Empty API key. Using fallback exercises.");
+            return generateFallbackExercises(content, topic, count);
+        }
+        
         const ai = new GoogleGenAI({ apiKey });
 
         const getExerciseSchema = () => ({
@@ -127,7 +133,7 @@ export const generateGamifiedExercises = async (content: string, topic: string, 
 
             try {
                 const response = await ai.models.generateContent({
-                    model: "gemini-3-flash-preview",
+                    model: "gemini-1.5-flash",
                     contents: prompt,
                     config: {
                         responseMimeType: "application/json",
@@ -135,11 +141,20 @@ export const generateGamifiedExercises = async (content: string, topic: string, 
                     }
                 });
 
-                if (!response.text) return [];
-                return JSON.parse(response.text);
+                if (!response.text) {
+                    console.warn("No text in response");
+                    return [];
+                }
+                const parsed = JSON.parse(response.text);
+                if (!Array.isArray(parsed)) {
+                    console.warn("Response is not an array", parsed);
+                    return [];
+                }
+                return parsed;
             } catch (e) {
-                console.warn("Single batch generation failed", e);
-                return [];
+                console.error("Single batch generation failed", e);
+                // Return fallback exercises instead of empty array
+                return generateFallbackExercises(safeContext, topic, numQuestions);
             }
         };
 
@@ -231,7 +246,7 @@ export const checkAnswerWithAI = async (question: string, correctAnswer: string,
         `;
         
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-1.5-flash",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -245,7 +260,8 @@ export const checkAnswerWithAI = async (question: string, correctAnswer: string,
                 }
             }
         });
-        return JSON.parse(response.text || '{"correct": false, "feedback": "AI Error"}');
+        const result = JSON.parse(response.text || '{"correct": false, "feedback": "AI Error"}');
+        return result;
     } catch(e) {
         console.error("AI answer check failed:", e);
         // Provide a more specific error message if the key is the issue

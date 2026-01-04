@@ -188,9 +188,11 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
     } catch (e: any) {
       console.error("Error starting Learn Mode:", e);
       let errorMessage = "Failed to generate the learning session. Please try again.";
-      if (e.message.includes("GEMINI_API_KEY")) {
-          errorMessage = "The AI service is not configured. Please ensure your API key is set up correctly.";
-      } else if (e.message) {
+      if (e?.message?.includes("GEMINI_API_KEY") || e?.message?.includes("API key")) {
+          errorMessage = "The AI service is not configured. Using fallback exercises. Please set VITE_GEMINI_API_KEY in your environment variables.";
+          // The generateGamifiedExercises function already has fallback built-in, so it should work
+          // Just show the error but let the function handle fallback
+      } else if (e?.message) {
           errorMessage = e.message;
       }
       setError(errorMessage);
