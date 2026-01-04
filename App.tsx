@@ -22,9 +22,12 @@ import { ResourcesPage } from './components/ResourcesPage';
 import { ExplorePage } from './components/ExplorePage';
 import { Onboarding } from './components/Onboarding'; 
 import { ProfilePage } from './components/ProfilePage';
+import { AuthEnhanced } from './components/AuthEnhanced';
+import { AuthCallback } from './components/AuthCallback';
 import { soundService } from './services/soundService';
 import { generateDailyGoals } from './services/geminiService';
-import { api } from './services/api'; 
+import { api } from './services/api';
+import { supabase } from './services/supabaseClient';
 import { Menu } from 'lucide-react';
 
 const THEME_COLORS: Record<ColorScheme, string> = {
@@ -104,6 +107,11 @@ const App: React.FC = () => {
   const [appLoading, setAppLoading] = useState(true);
   const [view, setView] = useState<AppView>(AppView.DASHBOARD);
   
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  
   // Data State
   const [decks, setDecks] = useState<Deck[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
@@ -137,6 +145,61 @@ const App: React.FC = () => {
   const [focusTimeLeft, setFocusTimeLeft] = useState(25 * 60);
   const [focusIsActive, setFocusIsActive] = useState(false);
   const [focusMode, setFocusMode] = useState<'focus' | 'short' | 'long'>('focus');
+
+  // --- AUTHENTICATION CHECK ---
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Check if this is the auth callback page
+        if (window.location.pathname === '/auth/callback') {
+          return; // Let AuthCallback handle it
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          setAuthUser(session.user);
+          setIsAuthenticated(true);
+          
+          // Create or update user profile in backend
+          try {
+            await api.saveProfile({
+              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+              avatar: session.user.user_metadata?.avatar_url || '',
+              gradeLevel: 'Student'
+            });
+          } catch (error) {
+            console.log('Profile sync error (will be handled later):', error);
+          }
+        } else {
+          setIsAuthenticated(false);
+          setAuthUser(null);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setIsAuthenticated(false);
+        setAuthUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setAuthUser(session.user);
+        setIsAuthenticated(true);
+      } else if (event === 'SIGNED_OUT') {
+        setAuthUser(null);
+        setIsAuthenticated(false);
+        setUserProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // --- URL IMPORT HANDLER ---
   useEffect(() => {
@@ -573,8 +636,46 @@ const App: React.FC = () => {
   const handleUpdateSessions = (updatedSessions: ChatSession[]) => {
       setChatSessions(updatedSessions);
   };
+
+  const handleSignOut = async () => {
+      try {
+          await supabase.auth.signOut();
+          setAuthUser(null);
+          setIsAuthenticated(false);
+          setUserProfile(null);
+          setDecks([]);
+          setNotes([]);
+          setTests([]);
+          setChatSessions([]);
+          setStats(DEFAULT_STATS);
+      } catch (error) {
+          console.error('Sign out error:', error);
+      }
+  };
   
   // --- View Rendering ---
+
+  // Handle auth callback page
+  if (window.location.pathname === '/auth/callback') {
+      return <AuthCallback />;
+  }
+
+  // Show loading while checking authentication
+  if (authLoading) {
+     return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-950">
+             <div className="animate-pulse text-white font-bold text-xl">Loading Card Snaps...</div>
+        </div>
+     );
+  }
+
+  // Show authentication screen if not authenticated
+  if (!isAuthenticated) {
+      return <AuthEnhanced onAuthSuccess={(user) => {
+          setAuthUser(user);
+          setIsAuthenticated(true);
+      }} />;
+  }
 
   if (appLoading) {
      return (
@@ -832,6 +933,8 @@ const App: React.FC = () => {
                currentView={view} 
                onNavigate={(v: AppView) => { setView(v); setShowSidebarMobile(false); }} 
                userProfile={userProfile}
+               authUser={authUser}
+               onSignOut={handleSignOut}
                className={`md:flex fixed left-0 top-0 h-full w-72 transition-transform duration-300 z-50 ${showSidebarMobile ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}
                themeColor={themeColor}
                activeEvent={enableSeasonal ? activeEvent : null}

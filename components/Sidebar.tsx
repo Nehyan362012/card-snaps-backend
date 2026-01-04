@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, WalletCards, PlusCircle, GraduationCap, Palette, LayoutGrid, Bot, Sparkles, Gamepad2, Trophy, StickyNote, Anchor, Zap, BookOpen, Calculator, Book, Globe, Clock } from 'lucide-react';
+import { LayoutDashboard, WalletCards, PlusCircle, GraduationCap, Palette, LayoutGrid, Bot, Sparkles, Gamepad2, Trophy, StickyNote, Anchor, Zap, BookOpen, Calculator, Book, Globe, Clock, LogOut, User } from 'lucide-react';
 import { AppView, UserProfile, ColorScheme, SeasonalEvent } from '../types';
 import { soundService } from '../services/soundService';
 
@@ -11,6 +11,8 @@ interface SidebarProps {
   className?: string;
   themeColor?: string; // e.g. 'indigo', 'cyan', 'red'
   activeEvent?: SeasonalEvent | null;
+  authUser?: any;
+  onSignOut?: () => void;
 }
 
 // Helper to map color scheme/event to Tailwind classes
@@ -34,7 +36,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userProfile,
   className = '',
   themeColor = 'indigo',
-  activeEvent
+  activeEvent,
+  authUser,
+  onSignOut
 }) => {
   
   const styles = getThemeStyles(themeColor);
@@ -85,11 +89,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => { soundService.playClick(); onNavigate(AppView.PROFILE); }}
                 className={`w-full flex items-center gap-3 p-3 bg-[var(--input-bg)] rounded-3xl border border-[var(--glass-border)] backdrop-blur-sm hover:border-opacity-50 transition-colors shadow-sm group hover:${styles.border} text-left`}
             >
-                <img src={userProfile.avatar} alt="User" className={`w-10 h-10 rounded-full border-2 border-[var(--glass-border)] object-cover group-hover:${styles.border}`} />
+                <div className="w-10 h-10 rounded-full border-2 border-[var(--glass-border)] bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center group-hover:${styles.border}">
+                    {userProfile.avatar ? (
+                        <img src={userProfile.avatar} alt="User" className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                        <User className="w-5 h-5 text-white" />
+                    )}
+                </div>
                 <div className="min-w-0">
                     <p className="text-[var(--text-primary)] text-sm font-bold truncate">{userProfile.name}</p>
                     <p className={`text-xs font-medium ${styles.text}`}>Edit Profile</p>
                 </div>
+            </button>
+            
+            {/* Sign Out Button */}
+            <button
+                onClick={() => { soundService.playClick(); onSignOut?.(); }}
+                className="w-full flex items-center gap-3 p-3 mt-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-3xl transition-all duration-200"
+            >
+                <LogOut className="w-4 h-4" />
+                <span className="text-sm font-medium">Sign Out</span>
             </button>
         </div>
       )}

@@ -1,5 +1,6 @@
 
 import { Deck, Note, Test, UserStats, UserProfile, ChatSession, ThemeMode, ColorScheme } from '../types';
+import { supabase } from './supabaseClient';
 
 // API Base URL - can be overridden with VITE_API_BASE environment variable
 const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? 'http://localhost:3001' : 'https://card-snaps-backend.onrender.com');
@@ -37,53 +38,104 @@ export interface StoredUser extends UserProfile {
 class ApiService {
     private async apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
         const url = `${API_BASE}/api${endpoint}`;
+        
+        // Get auth session and add to headers
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        
+        if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+        
         const response = await fetch(url, {
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             ...options
         });
+        
         if (!response.ok) {
             throw new Error(`API Error: ${response.statusText}`);
         }
         return response.json();
     }
 
-    isAuthenticated() {
-        // For now, assume always authenticated or check local
-        return true;
+    async isAuthenticated() {
+        const { data: { session } } = await supabase.auth.getSession();
+        return !!session?.user;
+    }
+
+    async getCurrentUser() {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session?.user || null;
+    }
+
+    async signOut() {
+        await supabase.auth.signOut();
     }
 
     async register(email: string, password: string, name: string) {
-        const id = crypto.randomUUID();
-        const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`;
-
-        const newUser: StoredUser = {
-            id, email, name, avatar,
-            gradeLevel: '10th Grade',
-            themeMode: 'dark', colorScheme: 'ocean', enableSeasonal: true,
-            created_at: Date.now()
-        };
-
-        // For now, store locally, but ideally send to backend
-        localStorage.setItem('user', JSON.stringify(newUser));
-        return newUser;
+        // This is now handled by Supabase Auth directly
+        // This method is kept for backward compatibility but not used
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    full_name: name,
+                    display_name: name
+                }
+            }
+        });
+        
+        if (error) throw error;
+        return data.user;
     }
 
     async getMe(): Promise<StoredUser | null> {
-        const item = localStorage.getItem('user');
-        return item ? JSON.parse(item) : null;
+        const user = await this.getCurrentUser();
+        if (!user) return null;
+        
+        return {
+            id: user.id,
+            email: user.email || '',
+            name: user.user_metadata?.full_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+            avatar: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
+            gradeLevel: 'Student'
+        };
     }
 
     async saveProfile(profile: UserProfile) {
-        const current = await this.getMe();
-        const updated = { ...current, ...profile };
-        localStorage.setItem('user', JSON.stringify(updated));
-        return updated;
+        // Update user metadata in Supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No authenticated user');
+        
+        const { error } = await supabase.auth.updateUser({
+            data: {
+                full_name: profile.name,
+                display_name: profile.name,
+                avatar_url: profile.avatar
+            }
+        });
+        
+        if (error) throw error;
+        
+        // Also save to backend for additional data
+        return this.apiRequest('/profile', {
+            method: 'POST',
+            body: JSON.stringify(profile)
+        });
     }
 
     async savePreferences(themeMode: string, colorScheme: string, enableSeasonal: boolean) {
-        const current = await this.getMe();
-        const updated = { ...current, themeMode, colorScheme, enableSeasonal };
-        localStorage.setItem('user', JSON.stringify(updated));
+        // Save preferences to Supabase user metadata
+        const { error } = await supabase.auth.updateUser({
+            data: {
+                themeMode,
+                colorScheme,
+                enableSeasonal
+            }
+        });
+        
+        if (error) throw error;
     }
 
     async getDecks(): Promise<Deck[]> {

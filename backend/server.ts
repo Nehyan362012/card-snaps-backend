@@ -62,6 +62,67 @@ if (!supabaseUrl || !supabaseKey) {
 }
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
+// Profile endpoint
+app.get('/api/profile', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+  
+  // Get auth token from header
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No authorization token provided' });
+  }
+  
+  const token = authHeader.substring(7);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  
+  // Return user profile data
+  res.json({
+    id: user.id,
+    email: user.email,
+    name: user.user_metadata?.full_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+    avatar: user.user_metadata?.avatar_url || '',
+    gradeLevel: 'Student'
+  });
+});
+
+app.post('/api/profile', async (req, res) => {
+  if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+  
+  // Get auth token from header
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No authorization token provided' });
+  }
+  
+  const token = authHeader.substring(7);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  
+  // Update user metadata
+  const { error: updateError } = await supabase.auth.admin.updateUserById(
+    user.id,
+    { 
+      user_metadata: {
+        ...user.user_metadata,
+        ...req.body
+      }
+    }
+  );
+  
+  if (updateError) {
+    return res.status(500).json({ error: updateError.message });
+  }
+  
+  res.json({ success: true, profile: req.body });
+});
+
 // API Routes
 
 // Decks
