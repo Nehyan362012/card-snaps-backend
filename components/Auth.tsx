@@ -31,7 +31,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                     supabaseClient={supabase}
                     appearance={{ theme: ThemeSupa }}
                     providers={['google']}
-                    redirectTo={window.location.origin}
+                    redirectTo={`${window.location.origin}/auth/callback`}
                 />
             </div>
         </div>

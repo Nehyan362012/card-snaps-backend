@@ -14,6 +14,10 @@ export const AuthCallback: React.FC = () => {
                 
                 // Get the session after OAuth redirect
                 const { data, error } = await supabase.auth.getSession();
+                if (!error) {
+                    // Also refresh the session to ensure it’s persisted after OAuth
+                    await supabase.auth.refreshSession();
+                }
                 
                 if (error) {
                     console.error('Auth callback error:', error);

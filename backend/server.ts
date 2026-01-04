@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { randomUUID } from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +26,7 @@ if (fs.existsSync(envPath)) {
 }
 
 import { Deck, Note, Test, ChatSession, UserStats } from '../types';
-import { CommunityItem } from '../services/api';
+import type { CommunityItem } from '../services/api';
 import { generateDeckFromContent } from '../services/geminiService';
 
 interface Like {
@@ -61,6 +62,8 @@ if (!supabaseUrl || !supabaseKey) {
   console.warn('   Please set SUPABASE_URL and SUPABASE_ANON_KEY in your .env file');
 }
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const adminSupabase = supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
 
 // Profile endpoint
 app.get('/api/profile', async (req, res) => {
@@ -105,8 +108,11 @@ app.post('/api/profile', async (req, res) => {
     return res.status(401).json({ error: 'Invalid token' });
   }
   
-  // Update user metadata
-  const { error: updateError } = await supabase.auth.admin.updateUserById(
+  // Update user metadata (requires service role on server)
+  if (!adminSupabase) {
+    return res.status(500).json({ error: 'Service role not configured on server' });
+  }
+  const { error: updateError } = await adminSupabase.auth.admin.updateUserById(
     user.id,
     { 
       user_metadata: {
@@ -401,7 +407,7 @@ app.get('/api/community/:id/comments', async (req, res) => {
 app.post('/api/community/:id/comments', async (req, res) => {
   if (!supabase) {
     const comment = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       postId: req.params.id,
       userId: req.body.userId,
       text: req.body.text,
@@ -411,7 +417,7 @@ app.post('/api/community/:id/comments', async (req, res) => {
   }
   const postId = req.params.id;
   const comment = {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     postId,
     userId: req.body.userId,
     text: req.body.text,
