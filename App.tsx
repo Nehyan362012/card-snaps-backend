@@ -161,16 +161,14 @@ const App: React.FC = () => {
           setAuthUser(session.user);
           setIsAuthenticated(true);
           
-          // Create or update user profile in backend
-          try {
-            await api.saveProfile({
-              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-              avatar: session.user.user_metadata?.avatar_url || '',
-              gradeLevel: 'Student'
-            });
-          } catch (error) {
+          // Create or update user profile in backend (non-blocking)
+          api.saveProfile({
+            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            avatar: session.user.user_metadata?.avatar_url || '',
+            gradeLevel: 'Student'
+          }).catch(error => {
             console.log('Profile sync error (will be handled later):', error);
-          }
+          });
         } else {
           setIsAuthenticated(false);
           setAuthUser(null);
@@ -191,6 +189,15 @@ const App: React.FC = () => {
       if (event === 'SIGNED_IN' && session?.user) {
         setAuthUser(session.user);
         setIsAuthenticated(true);
+        
+        // Non-blocking profile sync
+        api.saveProfile({
+          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          avatar: session.user.user_metadata?.avatar_url || '',
+          gradeLevel: 'Student'
+        }).catch(error => {
+          console.log('Profile sync error (will be handled later):', error);
+        });
       } else if (event === 'SIGNED_OUT') {
         setAuthUser(null);
         setIsAuthenticated(false);
@@ -668,6 +675,9 @@ const App: React.FC = () => {
         </div>
      );
   }
+
+  // Debug authentication state
+  console.log('Auth state:', { authLoading, isAuthenticated, authUser });
 
   // Show authentication screen if not authenticated
   if (!isAuthenticated) {
