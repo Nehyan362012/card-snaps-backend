@@ -22,7 +22,7 @@ import { ResourcesPage } from './components/ResourcesPage';
 import { ExplorePage } from './components/ExplorePage';
 import { Onboarding } from './components/Onboarding'; 
 import { ProfilePage } from './components/ProfilePage';
-import { AuthWorking } from './components/AuthWorking';
+import { Auth } from './components/Auth';
 import { AuthCallback } from './components/AuthCallback';
 import { soundService } from './services/soundService';
 import { generateDailyGoals } from './services/geminiService';
@@ -660,10 +660,7 @@ const App: React.FC = () => {
 
   // Show authentication screen if not authenticated
   if (!isAuthenticated) {
-      return <AuthWorking onAuthSuccess={(user) => {
-          setAuthUser(user);
-          setIsAuthenticated(true);
-      }} />;
+      return <Auth onAuthSuccess={() => setIsAuthenticated(true)} />;
   }
 
   if (appLoading) {
