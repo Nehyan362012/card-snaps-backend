@@ -22,12 +22,12 @@ import { ResourcesPage } from './components/ResourcesPage';
 import { ExplorePage } from './components/ExplorePage';
 import { Onboarding } from './components/Onboarding'; 
 import { ProfilePage } from './components/ProfilePage';
-import { AuthSimple } from './components/AuthSimple';
+import { AuthWorking } from './components/AuthWorking';
 import { AuthCallback } from './components/AuthCallback';
 import { soundService } from './services/soundService';
 import { generateDailyGoals } from './services/geminiService';
 import { api } from './services/api';
-import { supabase } from './services/supabaseClientSimple';
+import { supabase } from './services/supabaseClient';
 import { Menu } from 'lucide-react';
 
 const THEME_COLORS: Record<ColorScheme, string> = {
@@ -660,7 +660,7 @@ const App: React.FC = () => {
 
   // Show authentication screen if not authenticated
   if (!isAuthenticated) {
-      return <AuthSimple onAuthSuccess={(user) => {
+      return <AuthWorking onAuthSuccess={(user) => {
           setAuthUser(user);
           setIsAuthenticated(true);
       }} />;
