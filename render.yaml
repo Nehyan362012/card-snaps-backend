@@ -7,6 +7,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 20
     # Add your environment variables in Render dashboard:
     # SUPABASE_URL
     # SUPABASE_ANON_KEY
