@@ -22,12 +22,12 @@ import { ResourcesPage } from './components/ResourcesPage';
 import { ExplorePage } from './components/ExplorePage';
 import { Onboarding } from './components/Onboarding'; 
 import { ProfilePage } from './components/ProfilePage';
-import { AuthEnhanced } from './components/AuthEnhanced';
+import { AuthSimple } from './components/AuthSimple';
 import { AuthCallback } from './components/AuthCallback';
 import { soundService } from './services/soundService';
 import { generateDailyGoals } from './services/geminiService';
 import { api } from './services/api';
-import { supabase } from './services/supabaseClient';
+import { supabase } from './services/supabaseClientSimple';
 import { Menu } from 'lucide-react';
 
 const THEME_COLORS: Record<ColorScheme, string> = {
@@ -150,7 +150,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if this is the auth callback page
+        // Check if this is auth callback page
         if (window.location.pathname === '/auth/callback') {
           return; // Let AuthCallback handle it
         }
@@ -160,15 +160,6 @@ const App: React.FC = () => {
         if (session?.user) {
           setAuthUser(session.user);
           setIsAuthenticated(true);
-          
-          // Create or update user profile in backend (non-blocking)
-          api.saveProfile({
-            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-            avatar: session.user.user_metadata?.avatar_url || '',
-            gradeLevel: 'Student'
-          }).catch(error => {
-            console.log('Profile sync error (will be handled later):', error);
-          });
         } else {
           setIsAuthenticated(false);
           setAuthUser(null);
@@ -189,15 +180,6 @@ const App: React.FC = () => {
       if (event === 'SIGNED_IN' && session?.user) {
         setAuthUser(session.user);
         setIsAuthenticated(true);
-        
-        // Non-blocking profile sync
-        api.saveProfile({
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-          avatar: session.user.user_metadata?.avatar_url || '',
-          gradeLevel: 'Student'
-        }).catch(error => {
-          console.log('Profile sync error (will be handled later):', error);
-        });
       } else if (event === 'SIGNED_OUT') {
         setAuthUser(null);
         setIsAuthenticated(false);
@@ -676,12 +658,9 @@ const App: React.FC = () => {
      );
   }
 
-  // Debug authentication state
-  console.log('Auth state:', { authLoading, isAuthenticated, authUser });
-
   // Show authentication screen if not authenticated
   if (!isAuthenticated) {
-      return <AuthEnhanced onAuthSuccess={(user) => {
+      return <AuthSimple onAuthSuccess={(user) => {
           setAuthUser(user);
           setIsAuthenticated(true);
       }} />;
