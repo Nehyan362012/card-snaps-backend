@@ -190,8 +190,25 @@ export const LearnMode: React.FC<LearnModeProps> = ({ decks, onExit, onUpdateSta
       let errorMessage = "Failed to generate the learning session. Please try again.";
       if (e?.message?.includes("GEMINI_API_KEY") || e?.message?.includes("API key")) {
           errorMessage = "The AI service is not configured. Using fallback exercises. Please set VITE_GEMINI_API_KEY in your environment variables.";
-          // The generateGamifiedExercises function already has fallback built-in, so it should work
-          // Just show the error but let the function handle fallback
+          // Try to continue with fallback exercises
+          try {
+            let fallbackContent = '';
+            if (sourceType === 'deck' && selectedDeck) {
+              fallbackContent = selectedDeck.cards.map(c => `Q: ${c.front} A: ${c.back}`).join('\n');
+            } else if (sourceType === 'ai') {
+              fallbackContent = `Generate relevant study content for Subject: ${subject}, Topic: ${topic}.`;
+            } else if (sourceType === 'manual') {
+              fallbackContent = manualText;
+            }
+            const fallback = await import('../services/geminiService').then(m => m.generateGamifiedExercises(fallbackContent, topic || (selectedDeck?.title ?? 'General'), questionCount));
+            if (fallback && fallback.length > 0) {
+              setExercises(fallback);
+              setGameState('playing');
+              return;
+            }
+          } catch (fallbackError) {
+            console.error("Fallback also failed:", fallbackError);
+          }
       } else if (e?.message) {
           errorMessage = e.message;
       }

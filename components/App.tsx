@@ -22,6 +22,7 @@ import { ResourcesPage } from './ResourcesPage';
 import { ExplorePage } from './ExplorePage';
 import { Onboarding } from './Onboarding'; 
 import { ProfilePage } from './ProfilePage';
+import { AuthCallback } from './AuthCallback';
 import { soundService } from '../services/soundService';
 import { generateDailyGoals } from '../services/geminiService';
 import { api, StoredUser } from '../services/api'; 
@@ -131,6 +132,11 @@ const App: React.FC = () => {
   const [focusIsActive, setFocusIsActive] = useState(false);
   const [focusMode, setFocusMode] = useState<'focus' | 'short' | 'long'>('focus');
 
+  // Handle auth callback page (OAuth)
+  if (window.location.pathname === '/auth/callback') {
+      return <AuthCallback />;
+  }
+
   useEffect(() => {
       const handleUrlImport = async () => {
           const params = new URLSearchParams(window.location.search);
@@ -178,13 +184,11 @@ const App: React.FC = () => {
   useEffect(() => {
       if (!userProfile) return;
 
-      const onboardingDone = localStorage.getItem('cardsnaps_onboarding_done');
-      if (onboardingDone) setShowOnboarding(false);
-
       const initData = async () => {
           try {
               const user: StoredUser | null = await api.getMe();
               if (user) {
+                  // Refresh profile & preferences from the authenticated user
                   setUserProfile({
                       name: user.name,
                       avatar: user.avatar,
@@ -193,6 +197,7 @@ const App: React.FC = () => {
                   if (user.themeMode) setThemeMode(user.themeMode);
                   if (user.colorScheme) setColorScheme(user.colorScheme);
                   if (user.enableSeasonal !== undefined) setEnableSeasonal(user.enableSeasonal);
+                  if (user.onboardingDone) setShowOnboarding(false);
               }
 
               const [fetchedDecks, fetchedNotes, fetchedTests, fetchedStats, fetchedChats] = await Promise.all([
@@ -214,11 +219,10 @@ const App: React.FC = () => {
               if (currentStats.learnSessionsToday === undefined) currentStats.learnSessionsToday = 0;
 
               const today = new Date().toDateString();
-              
               if (currentStats.lastStudyDate !== today && currentStats.lastStudyDate) {
                   currentStats.learnSessionsToday = 0;
               }
-              
+
               if (currentStats.goalsGeneratedDate !== today && user) {
                    const deckTitles = fetchedDecks.map((d: Deck) => d.title);
                    try {
@@ -230,9 +234,9 @@ const App: React.FC = () => {
                             learnSessionsToday: 0
                        };
                        setStats(updatedStats);
-                       api.syncStats(updatedStats); 
+                       api.syncStats(updatedStats);
                    } catch (e) {
-                       setStats(currentStats); 
+                       setStats(currentStats);
                    }
               } else {
                   setStats(currentStats);
@@ -246,7 +250,7 @@ const App: React.FC = () => {
       };
 
       initData();
-  }, []);
+  }, [userProfile]);
 
   useEffect(() => {
     const now = new Date();
@@ -277,9 +281,16 @@ const App: React.FC = () => {
       }
   }, [themeMode, colorScheme, enableSeasonal, appLoading, userProfile]);
 
-  const handleOnboardingComplete = () => {
-    localStorage.setItem('cardsnaps_onboarding_done', 'true');
+  const handleOnboardingComplete = async () => {
     setShowOnboarding(false);
+    // Save onboarding completion to user metadata via API
+    if (userProfile) {
+      try {
+        await api.savePreferences(themeMode, colorScheme, enableSeasonal, true);
+      } catch (error) {
+        console.error('Failed to save onboarding completion:', error);
+      }
+    }
   };
 
   const handleProfileSave = async (profile: UserProfile) => {

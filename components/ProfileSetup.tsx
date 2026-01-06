@@ -124,11 +124,6 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
     }
   };
 
-  const handleSkipAuth = () => {
-    setIsAuthenticated(true);
-    setShowAuth(false);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -259,15 +254,6 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
               onlyThirdPartyProviders={false}
               magicLink={true}
             />
-          </div>
-
-          <div className="mt-8 text-center">
-            <button
-              onClick={handleSkipAuth}
-              className="text-sm text-gray-400 hover:text-gray-300 underline transition-colors font-medium"
-            >
-              Continue without account (local storage only)
-            </button>
           </div>
         </div>
       </div>
