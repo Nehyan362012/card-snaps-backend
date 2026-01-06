@@ -291,6 +291,8 @@ const App: React.FC = () => {
           setStats(newStats);
           api.syncStats(newStats);
       }
+      // Ensure we navigate to the main app after profile save
+      setView(AppView.DASHBOARD);
   };
 
   const handleCreateDeck = () => {

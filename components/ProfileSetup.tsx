@@ -18,15 +18,14 @@ const GRADES = [
     "University (Year 3)", "University (Year 4+)", "Post-Graduate/Masters", "PhD"
 ];
 
-// Get the correct redirect URL (use deployed URL, not localhost)
+// Get the correct redirect URL for OAuth
 const getRedirectUrl = () => {
   const currentUrl = window.location.href.split('?')[0].split('#')[0];
-  // If we're on localhost, check for environment variable for production URL
+  // For development, use localhost
   if (currentUrl.includes('localhost') || currentUrl.includes('127.0.0.1')) {
-    // In development, use current origin
     return currentUrl;
   }
-  // In production, use the current URL (which should be the deployed URL)
+  // For production, use the deployed URL
   return currentUrl;
 };
 
@@ -161,54 +160,111 @@ export const ProfileSetup: React.FC<ProfileSetupProps> = ({ onSave }) => {
           </div>
           
           <style>{`
-            .auth-container button {
-              border-radius: 0.75rem !important;
-              transition: all 0.2s ease !important;
+            .supabase-auth-ui {
+              --supabase-auth-fonts: 'Inter', system-ui, sans-serif;
             }
-            .auth-container button:hover {
+            .supabase-auth-ui .button {
+              border-radius: 1rem !important;
+              font-weight: 600 !important;
+              transition: all 0.2s ease !important;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+            }
+            .supabase-auth-ui .button:hover {
               transform: translateY(-2px) !important;
               box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3) !important;
             }
-            .auth-container input {
+            .supabase-auth-ui .input {
               border-radius: 0.75rem !important;
               transition: all 0.2s ease !important;
+              border: 2px solid #374151 !important;
+              background: #1f2937 !important;
             }
-            .auth-container input:focus {
+            .supabase-auth-ui .input:focus {
               border-color: #6366f1 !important;
               box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
             }
+            .supabase-auth-ui .label {
+              color: #d1d5db !important;
+              font-weight: 600 !important;
+              margin-bottom: 0.5rem !important;
+            }
+            .supabase-auth-ui .message {
+              border-radius: 0.75rem !important;
+            }
+            .supabase-auth-ui .divider {
+              border-color: #374151 !important;
+              margin: 1.5rem 0 !important;
+            }
+            .supabase-auth-ui .anchor {
+              color: #818cf8 !important;
+              font-weight: 500 !important;
+            }
+            .supabase-auth-ui .anchor:hover {
+              color: #a5b4fc !important;
+            }
+            .supabase-auth-ui .google-button {
+              background: #ffffff !important;
+              color: #1f2937 !important;
+              border: 2px solid #374151 !important;
+              border-radius: 1rem !important;
+              font-weight: 600 !important;
+              padding: 0.75rem 1rem !important;
+              transition: all 0.2s ease !important;
+            }
+            .supabase-auth-ui .google-button:hover {
+              background: #f9fafb !important;
+              border-color: #6366f1 !important;
+              transform: translateY(-2px) !important;
+              box-shadow: 0 10px 25px rgba(99, 102, 241, 0.2) !important;
+            }
           `}</style>
 
-          <SupabaseAuth
-            supabaseClient={supabase}
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: '#6366f1',
-                    brandAccent: '#4f46e5',
+          <div className="supabase-auth-ui">
+            <SupabaseAuth
+              supabaseClient={supabase}
+              appearance={{
+                theme: ThemeSupa,
+                variables: {
+                  default: {
+                    colors: {
+                      brand: '#6366f1',
+                      brandAccent: '#4f46e5',
+                      defaultButtonText: '#ffffff',
+                      defaultButtonBackground: '#6366f1',
+                      defaultButtonBorder: '#6366f1',
+                      inputBackground: '#1f2937',
+                      inputBorder: '#374151',
+                      inputText: '#ffffff',
+                      inputPlaceholder: '#9ca3af',
+                      anchorTextColor: '#818cf8',
+                      anchorTextHoverColor: '#a5b4fc',
+                      messageText: '#ffffff',
+                      messageBackground: '#374151',
+                      messageBorder: '#4b5563',
+                    },
                   },
                 },
-              },
-              className: {
-                anchor: 'text-indigo-400 hover:text-indigo-300 transition-colors',
-                button: 'rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]',
-                input: 'rounded-xl border-2 transition-all focus:ring-2 focus:ring-indigo-500/50',
-                label: 'text-slate-300',
-                message: 'rounded-xl',
-              },
-            }}
-            providers={['google']}
-            redirectTo={getRedirectUrl()}
-            onlyThirdPartyProviders={false}
-            magicLink={true}
-          />
+                className: {
+                  container: 'space-y-6',
+                  label: 'block text-sm font-medium text-gray-300 mb-2',
+                  input: 'w-full px-4 py-3 bg-gray-800 border-2 border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all',
+                  button: 'w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0',
+                  divider: 'relative my-6',
+                  anchor: 'text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors',
+                  message: 'p-4 rounded-xl text-sm',
+                },
+              }}
+              providers={['google']}
+              redirectTo={getRedirectUrl()}
+              onlyThirdPartyProviders={false}
+              magicLink={true}
+            />
+          </div>
 
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <button
               onClick={handleSkipAuth}
-              className="text-sm text-slate-400 hover:text-slate-300 underline"
+              className="text-sm text-gray-400 hover:text-gray-300 underline transition-colors font-medium"
             >
               Continue without account (local storage only)
             </button>
